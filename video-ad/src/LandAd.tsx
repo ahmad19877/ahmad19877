@@ -12,15 +12,27 @@ import {
 } from "remotion";
 import { useCairoFont } from "./useCairoFont";
 
-const GREEN = "#0F2A1D";
-const GREEN_DARK = "#0A1D14";
-const GOLD = "#D9A441";
-const GOLD_LIGHT = "#F1CE83";
-const CREAM = "#FBF6E9";
+const BLACK = "#0A0908";
+const BLACK_CARD = "#161310";
+const GOLD = "#C9972E";
+const GOLD_LIGHT = "#F0CD79";
+const WHITE = "#FFFFFF";
 
 const fontFamily = "Cairo, sans-serif";
 
 // ---------- helpers ----------
+
+// Explicit weight on both fontWeight and the variable-font axis so the
+// Cairo variable font actually renders at the heavy end instead of
+// defaulting to a thin interpolation.
+const weight = (w: number): React.CSSProperties => ({
+  fontWeight: w as React.CSSProperties["fontWeight"],
+  fontVariationSettings: `"wght" ${w}`,
+});
+
+const textPop: React.CSSProperties = {
+  textShadow: "0 3px 14px rgba(0,0,0,0.65), 0 1px 3px rgba(0,0,0,0.8)",
+};
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -56,32 +68,33 @@ const TopBar: React.FC<{ visible: number }> = ({ visible }) => {
     >
       <div
         style={{
-          background: "rgba(10, 29, 20, 0.72)",
-          border: `1.5px solid ${GOLD}`,
+          background: "rgba(10, 9, 8, 0.85)",
+          border: `2px solid ${GOLD}`,
           borderRadius: 999,
           padding: "14px 36px",
           display: "flex",
           alignItems: "center",
           gap: 14,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
         }}
       >
         <span
           style={{
             fontFamily,
-            fontWeight: 800,
+            ...weight(800),
             fontSize: 30,
             color: GOLD_LIGHT,
           }}
         >
           قطعة أرض للبيع
         </span>
-        <span style={{ color: CREAM, opacity: 0.6, fontSize: 26 }}>•</span>
+        <span style={{ color: WHITE, opacity: 0.5, fontSize: 26 }}>•</span>
         <span
           style={{
             fontFamily,
-            fontWeight: 600,
+            ...weight(700),
             fontSize: 28,
-            color: CREAM,
+            color: WHITE,
           }}
         >
           شفا بدران
@@ -125,11 +138,11 @@ const Caption: React.FC<{ frame: number; duration: number; lines: string[] }> = 
     >
       <div
         style={{
-          background: `linear-gradient(135deg, ${GREEN} 0%, ${GREEN_DARK} 100%)`,
-          border: `2px solid ${GOLD}`,
+          background: "rgba(10, 9, 8, 0.9)",
+          border: `2.5px solid ${GOLD}`,
           borderRadius: 28,
           padding: "28px 44px",
-          boxShadow: "0 18px 40px rgba(0,0,0,0.45)",
+          boxShadow: "0 18px 44px rgba(0,0,0,0.6)",
           maxWidth: 900,
         }}
       >
@@ -138,11 +151,13 @@ const Caption: React.FC<{ frame: number; duration: number; lines: string[] }> = 
             key={i}
             style={{
               fontFamily,
-              fontWeight: i === 0 ? 800 : 700,
-              fontSize: i === 0 ? 46 : 34,
-              color: i === 0 ? GOLD_LIGHT : CREAM,
+              ...weight(i === 0 ? 900 : 800),
+              fontSize: i === 0 ? 48 : 34,
+              color: i === 0 ? GOLD_LIGHT : WHITE,
               textAlign: "center",
               lineHeight: 1.4,
+              letterSpacing: 0.3,
+              ...textPop,
             }}
           >
             {line}
@@ -162,7 +177,7 @@ const BottomGradient: React.FC = () => (
       bottom: 0,
       height: "55%",
       background:
-        "linear-gradient(to bottom, rgba(10,29,20,0) 0%, rgba(10,29,20,0.55) 55%, rgba(10,29,20,0.9) 100%)",
+        "linear-gradient(to bottom, rgba(10,9,8,0) 0%, rgba(10,9,8,0.6) 55%, rgba(10,9,8,0.92) 100%)",
     }}
   />
 );
@@ -176,7 +191,7 @@ const TopGradient: React.FC = () => (
       top: 0,
       height: "30%",
       background:
-        "linear-gradient(to top, rgba(10,29,20,0) 0%, rgba(10,29,20,0.6) 100%)",
+        "linear-gradient(to top, rgba(10,9,8,0) 0%, rgba(10,9,8,0.65) 100%)",
     }}
   />
 );
@@ -248,7 +263,7 @@ const Intro: React.FC<{ duration: number }> = ({ duration }) => {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            filter: "blur(2px) brightness(0.55)",
+            filter: "blur(2px) brightness(0.4)",
             transform: `scale(${interpolate(frame, [0, duration], [1, 1.08])})`,
           }}
         />
@@ -256,7 +271,7 @@ const Intro: React.FC<{ duration: number }> = ({ duration }) => {
       <AbsoluteFill
         style={{
           background:
-            "linear-gradient(180deg, rgba(10,29,20,0.55) 0%, rgba(10,29,20,0.35) 45%, rgba(10,29,20,0.85) 100%)",
+            "linear-gradient(180deg, rgba(10,9,8,0.7) 0%, rgba(10,9,8,0.55) 45%, rgba(10,9,8,0.92) 100%)",
         }}
       />
       <AbsoluteFill
@@ -270,13 +285,14 @@ const Intro: React.FC<{ duration: number }> = ({ duration }) => {
         <div
           style={{
             fontFamily,
-            fontWeight: 900,
-            fontSize: 88,
+            ...weight(900),
+            fontSize: 90,
             color: GOLD_LIGHT,
             textAlign: "center",
             lineHeight: 1.25,
+            letterSpacing: 0.5,
             transform: `scale(${clamp01(scaleTitle)})`,
-            textShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            textShadow: "0 4px 24px rgba(0,0,0,0.8)",
           }}
         >
           قطعة أرض للبيع
@@ -284,12 +300,13 @@ const Intro: React.FC<{ duration: number }> = ({ duration }) => {
         <div
           style={{
             fontFamily,
-            fontWeight: 700,
+            ...weight(800),
             fontSize: 44,
-            color: CREAM,
+            color: WHITE,
             textAlign: "center",
             marginTop: 26,
             opacity: subOpacity,
+            ...textPop,
           }}
         >
           شفا بدران - حوض مرج الفرس
@@ -329,7 +346,7 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
     <AbsoluteFill
       style={{
         opacity,
-        background: `radial-gradient(circle at 50% 0%, ${GREEN} 0%, ${GREEN_DARK} 70%)`,
+        background: `radial-gradient(circle at 50% 0%, ${BLACK_CARD} 0%, ${BLACK} 70%)`,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "column",
@@ -339,11 +356,13 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
       <div
         style={{
           fontFamily,
-          fontWeight: 900,
-          fontSize: 58,
+          ...weight(900),
+          fontSize: 60,
           color: GOLD_LIGHT,
           textAlign: "center",
+          letterSpacing: 0.5,
           transform: `scale(${clamp01(cardScale)})`,
+          textShadow: "0 4px 20px rgba(0,0,0,0.6)",
         }}
       >
         قطعة أرض للبيع
@@ -352,8 +371,8 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
       <div
         style={{
           marginTop: 34,
-          background: "rgba(251,246,233,0.06)",
-          border: `2px solid ${GOLD}`,
+          background: "rgba(255,255,255,0.04)",
+          border: `2.5px solid ${GOLD}`,
           borderRadius: 30,
           padding: "36px 44px",
           width: "100%",
@@ -370,16 +389,16 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
               alignItems: "center",
               padding: "16px 0",
               borderBottom:
-                i === rows.length - 1 ? "none" : "1px solid rgba(217,164,65,0.3)",
+                i === rows.length - 1 ? "none" : "1px solid rgba(201,151,46,0.35)",
             }}
           >
             <span
               style={{
                 fontFamily,
-                fontWeight: 700,
+                ...weight(700),
                 fontSize: 32,
-                color: CREAM,
-                opacity: 0.85,
+                color: WHITE,
+                opacity: 0.75,
               }}
             >
               {label}
@@ -387,7 +406,7 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
             <span
               style={{
                 fontFamily,
-                fontWeight: 800,
+                ...weight(800),
                 fontSize: 36,
                 color: GOLD_LIGHT,
               }}
@@ -402,18 +421,19 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
         style={{
           marginTop: 36,
           opacity: priceOpacity,
-          background: GOLD,
+          background: `linear-gradient(135deg, ${GOLD_LIGHT} 0%, ${GOLD} 100%)`,
           borderRadius: 20,
           padding: "20px 56px",
+          boxShadow: "0 12px 30px rgba(201,151,46,0.35)",
           transform: `scale(${clamp01(cardScale)})`,
         }}
       >
         <span
           style={{
             fontFamily,
-            fontWeight: 900,
+            ...weight(900),
             fontSize: 50,
-            color: GREEN_DARK,
+            color: BLACK,
           }}
         >
           130,000 دينار
@@ -435,16 +455,18 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
             width: 22,
             height: 22,
             borderRadius: "50%",
-            background: "#3BD16F",
+            background: GOLD_LIGHT,
+            boxShadow: `0 0 16px ${GOLD}`,
           }}
         />
         <span
           style={{
             fontFamily,
-            fontWeight: 800,
+            ...weight(800),
             fontSize: 54,
-            color: CREAM,
+            color: WHITE,
             direction: "ltr",
+            ...textPop,
           }}
         >
           0795627631
@@ -455,9 +477,9 @@ const Outro: React.FC<{ duration: number }> = ({ duration }) => {
           marginTop: 10,
           opacity: priceOpacity,
           fontFamily,
-          fontWeight: 600,
+          ...weight(700),
           fontSize: 30,
-          color: CREAM,
+          color: WHITE,
           textAlign: "center",
         }}
       >
@@ -611,7 +633,7 @@ export const LandAd: React.FC = () => {
   }));
 
   return (
-    <AbsoluteFill style={{ background: GREEN_DARK }}>
+    <AbsoluteFill style={{ background: BLACK }}>
       <Sequence from={0} durationInFrames={INTRO_DUR}>
         <Intro duration={INTRO_DUR} />
       </Sequence>
