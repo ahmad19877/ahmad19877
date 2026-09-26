@@ -96,6 +96,12 @@
 
   .drawing { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
   .drawbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 6px 6px; }
+  .dims { border-top: 1px solid var(--line); margin-top: 6px; padding: 12px 8px 6px; display: grid; gap: 10px; }
+  .dims .sum { font-weight: 700; font-size: 15px; }
+  .dims .sum .num { font-weight: 600; }
+  .dims ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; }
+  .dims li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding-block: 3px; }
+  .dims li .e { color: var(--accent); font-weight: 600; }
   .drawing svg { display: block; width: 100%; height: auto; max-height: 72vh; }
   .note { color: var(--danger); font-size: 13px; margin: 0; }
   .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
@@ -127,13 +133,15 @@
         <button id="clearBtn" type="button">مسح الكل</button>
       </div>
 
-      <details id="pasteBox">
-        <summary>لصق مجموعة نقاط دفعة واحدة</summary>
+      <details id="pasteBox" open>
+        <summary>إضافة مجموعة إحداثيات مرة واحدة</summary>
         <textarea id="pasteArea" placeholder="3988814.039  3762525.662&#10;3988848.391, 3762533.738&#10;..."></textarea>
         <div class="actions" style="margin-top:8px">
-          <button id="pasteBtn" type="button">استبدال النقاط بهذه</button>
+          <button class="primary" id="pasteAddBtn" type="button">إضافة إلى الجدول</button>
+          <button id="pasteBtn" type="button">استبدال الجدول بها</button>
         </div>
-        <p class="hint">كل سطر نقطة: X ثم Y، مفصولين بمسافة أو فاصلة أو Tab. يقبل الأرقام العربية ٠١٢٣.</p>
+        <p class="hint">كل سطر نقطة: X ثم Y، مفصولين بمسافة أو فاصلة أو Tab. يقبل الأرقام العربية ٠١٢٣. وتقدر تلصق عموداً أو عمودين من إكسل مباشرة داخل أي خانة في الجدول، فتتعبأ الصفوف تلقائياً.</p>
+        <p class="hint" id="pasteMsg" hidden></p>
       </details>
 
       <div class="opts">
@@ -155,9 +163,13 @@
       <div class="drawing">
         <div class="drawbar">
           <span class="hint">الرسمة</span>
-          <button class="primary" id="pngBtn" type="button">تحميل الرسمة كصورة</button>
+          <div class="actions">
+            <button class="primary" id="pngBtn" type="button">تحميل الرسمة كصورة</button>
+            <button class="primary" id="pdfBtn" type="button">حفظ PDF</button>
+          </div>
         </div>
         <svg id="plot" viewBox="0 0 800 560" role="img" aria-label="رسمة قطعة الأرض"></svg>
+        <div class="dims" id="dims"></div>
       </div>
       <p class="note" id="warn" hidden></p>
 
@@ -423,6 +435,8 @@ function calc() {
   const sum = angles.reduce((s, a) => s + (a.deg || 0), 0);
   $("#angSum").textContent = angles.length ? `مجموع الزوايا ${sum.toFixed(2)}° (المفروض ${(angles.length - 2) * 180}° لشكل بـ ${angles.length} أضلاع)` : "تظهر الزوايا عند وجود 3 نقاط أو أكثر مع إغلاق الشكل.";
 
+  renderDims(edges, closed, area, perim);
+
   lastText = [
     "أطوال الأضلاع:",
     ...edges.map((e) => `${e.a.n}-${e.b.n}: ${fmt(e.d)} م`),
@@ -444,22 +458,66 @@ function selfIntersects(p) {
   return false;
 }
 
+function renderDims(edges, closed, area, perim) {
+  const box = $("#dims");
+  if (!edges.length) { box.innerHTML = ""; return; }
+  const sum = (closed ? `المساحة <span class="num">${fmt(area)}</span> م² (<span class="num">${fmt(area / 1000, 3)}</span> دونم) · ` : "")
+    + `المحيط <span class="num">${fmt(perim)}</span> م`;
+  box.innerHTML = `<div class="sum">${sum}</div><ul>`
+    + edges.map((e) => `<li><span class="e num">${e.a.n}–${e.b.n}</span><span><span class="num">${fmt(e.d)}</span> م</span></li>`).join("")
+    + `</ul>`;
+}
+
 // ---------- events ----------
 $("#addBtn").addEventListener("click", () => {
   pts.push({ x: "", y: "" }); renderTable(); calc();
   document.getElementById("px" + (pts.length - 1)).focus();
 });
 $("#clearBtn").addEventListener("click", () => { pts = [{ x: "", y: "" }, { x: "", y: "" }, { x: "", y: "" }]; hideSample(); renderTable(); calc(); });
-$("#pasteBtn").addEventListener("click", () => {
-  const rows = toLatin($("#pasteArea").value).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+// Each line -> one point. Accepts "x y", "x,y", tab-separated (Excel), and a leading point name/number.
+function parseRows(text) {
+  return toLatin(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
     .map((l) => l.split(/[\s,;]+/).filter(Boolean))
-    .filter((c) => c.length >= 2)
     .map((c) => c.length >= 3 && !Number.isFinite(Number(c[0])) ? c.slice(1) : c) // skip a leading point name
     .map((c) => c.length >= 3 && Number(c[0]) < 1000 && Number(c[1]) > 1000 ? c.slice(1) : c) // skip a leading point number
-    .map((c) => ({ x: c[0], y: c[1] }));
+    .filter((c) => c.length >= 1 && c.every((v) => Number.isFinite(Number(v))))
+    .map((c) => ({ x: c[0], y: c[1] ?? "" }));
+}
+const isEmptyPt = (p) => String(p.x).trim() === "" && String(p.y).trim() === "";
+function pasteMsg(t) { const m = $("#pasteMsg"); m.textContent = t; m.hidden = !t; }
+function usePasteArea(mode) {
+  const rows = parseRows($("#pasteArea").value).filter((r) => r.y !== "");
+  if (!rows.length) { pasteMsg("ما لقيت إحداثيات. اكتب كل نقطة بسطر: X ثم Y."); return; }
+  if (mode === "replace") pts = rows;
+  else pts = pts.filter((p) => !isEmptyPt(p)).concat(rows);
+  hideSample(); renderTable(); calc();
+  $("#pasteArea").value = "";
+  pasteMsg(`${mode === "replace" ? "صار في الجدول" : "انضافت"} ${rows.length} نقطة.`);
+}
+$("#pasteAddBtn").addEventListener("click", () => usePasteArea("add"));
+$("#pasteBtn").addEventListener("click", () => usePasteArea("replace"));
+
+// Paste several rows (or X and Y together) straight into a table cell.
+$("#ptsTable").addEventListener("paste", (e) => {
+  const input = e.target.closest("input");
+  if (!input) return;
+  const text = (e.clipboardData || window.clipboardData).getData("text");
+  const multi = /\r?\n./.test(text.trim()) || /[\t,;]|\S\s+\S/.test(text.trim());
+  if (!multi) return; // a single value: let the browser paste normally
+  const rows = parseRows(text);
   if (!rows.length) return;
-  pts = rows; hideSample(); renderTable(); calc();
-  $("#pasteBox").open = false;
+  e.preventDefault();
+  const start = Number(input.id.slice(2));
+  const col = input.id[1]; // "x" or "y"
+  rows.forEach((r, k) => {
+    const i = start + k;
+    if (!pts[i]) pts[i] = { x: "", y: "" };
+    if (col === "y" && r.y === "") pts[i].y = r.x;       // one column pasted into Y
+    else if (col === "x" && r.y === "") pts[i].x = r.x;  // one column pasted into X
+    else { pts[i].x = r.x; pts[i].y = r.y; }
+  });
+  hideSample(); renderTable(); calc();
+  pasteMsg(`انلصقت ${rows.length} نقطة في الجدول.`);
 });
 ["#closePoly", "#xNorth", "#showAngles"].forEach((s) => $(s).addEventListener("change", calc));
 $("#copyBtn").addEventListener("click", async () => {
@@ -485,7 +543,8 @@ function buildExportSvg() {
   const perim = edges.reduce((a, e) => a + e.d, 0);
   const W = 1200, head = 96, drawH = 840, cols = 3, rowH = 34;
   const rows = Math.ceil(edges.length / cols);
-  const foot = 130 + rows * rowH;
+  const ptRows = Math.ceil(g.clean.length / 2);
+  const foot = 130 + rows * rowH + 70 + (ptRows + 1) * 30;
   const H = head + drawH + foot;
   const F = EXPORT_COLORS["--font"], M = EXPORT_COLORS["--mono"];
   const inner = new XMLSerializer().serializeToString($("#plot"))
@@ -514,11 +573,24 @@ function buildExportSvg() {
     out += `<text x="${x}" y="${ty}" text-anchor="start" direction="rtl" font-family="${F}" font-size="19" fill="#17252A">`
       + `<tspan fill="#1F6F6A" font-weight="700">‎${e.a.n}–${e.b.n}</tspan>  :  <tspan font-family="${M}" font-weight="600">‎${fmt(e.d)}</tspan> م</text>`;
   });
+  // coordinates table (two columns of points)
+  y += (rows + 1) * rowH + 30;
+  out += `<text x="${W - 40}" y="${y}" text-anchor="start" direction="rtl" font-family="${F}" font-size="17" fill="#5B6B6E">إحداثيات النقاط</text>`;
+  const half = (W - 80) / 2;
+  const cell = (x, yy, t, opts = "") => `<text x="${x}" y="${yy}" text-anchor="end" font-family="${M}" font-size="16" ${opts}>${esc(t)}</text>`;
+  for (let c = 0; c < 2; c++) {
+    const R = W - 40 - c * half, hy = y + 32;
+    out += cell(R, hy, "#", 'fill="#5B6B6E"') + cell(R - 40, hy, "X", 'fill="#5B6B6E"') + cell(R - 240, hy, "Y", 'fill="#5B6B6E"');
+  }
+  g.clean.forEach((p, i) => {
+    const c = i % 2, r = Math.floor(i / 2), R = W - 40 - c * half, ty = y + 32 + (r + 1) * 30;
+    out += cell(R, ty, p.n, 'fill="#1F6F6A" font-weight="600"') + cell(R - 40, ty, p.x.toFixed(3), 'fill="#17252A"') + cell(R - 240, ty, p.y.toFixed(3), 'fill="#17252A"');
+  });
   out += `</svg>`;
   return { svg: out, W, H };
 }
 
-function svgToPngBlob({ svg, W, H }, scale = 2) {
+function svgToCanvas({ svg, W, H }, scale = 2) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -527,11 +599,41 @@ function svgToPngBlob({ svg, W, H }, scale = 2) {
       const ctx = cv.getContext("2d");
       ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.drawImage(img, 0, 0, cv.width, cv.height);
-      cv.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
+      resolve(cv);
     };
     img.onerror = () => reject(new Error("image load failed"));
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   });
+}
+const canvasBlob = (cv, type, q) => new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), type, q));
+
+// Minimal one-page A4 PDF with the drawing embedded as a JPEG (no library needed, works offline).
+async function canvasToPdfBlob(cv) {
+  const jpg = new Uint8Array(await (await canvasBlob(cv, "image/jpeg", 0.92)).arrayBuffer());
+  const PW = 595.28, PH = 841.89, m = 24;
+  const s = Math.min((PW - 2 * m) / cv.width, (PH - 2 * m) / cv.height);
+  const w = cv.width * s, h = cv.height * s, x = (PW - w) / 2, y = PH - m - h;
+  const content = `q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /Im0 Do Q`;
+  const enc = new TextEncoder();
+  const parts = [], offsets = [];
+  let len = 0;
+  const push = (d) => { const b = typeof d === "string" ? enc.encode(d) : d; parts.push(b); len += b.length; };
+  const obj = (n, body) => { offsets[n] = len; push(`${n} 0 obj\n${body}\nendobj\n`); };
+  push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`);
+  obj(4, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  offsets[5] = len;
+  push(`5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`);
+  push(jpg);
+  push("\nendstream\nendobj\n");
+  const xref = len;
+  let t = "xref\n0 6\n0000000000 65535 f \n";
+  for (let i = 1; i <= 5; i++) t += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
+  t += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  push(t);
+  return new Blob(parts, { type: "application/pdf" });
 }
 
 async function saveFile(blob, filename) {
@@ -544,20 +646,24 @@ async function saveFile(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
 
-$("#pngBtn").addEventListener("click", async () => {
-  const btn = $("#pngBtn"), label = "تحميل الرسمة كصورة";
-  if (geometry().clean.length < 2) { btn.textContent = "أدخل نقطتين على الأقل"; setTimeout(() => (btn.textContent = label), 1800); return; }
-  btn.disabled = true; btn.textContent = "جاري تجهيز الصورة…";
-  try {
-    const blob = await svgToPngBlob(buildExportSvg());
-    await saveFile(blob, "مخطط-قطعة-الأرض.png");
-    btn.textContent = "تم التحميل";
-  } catch (err) {
-    btn.textContent = err && err.code === "declined" ? label : "تعذّر التحميل، حاول مرة ثانية";
-  }
-  btn.disabled = false;
-  setTimeout(() => (btn.textContent = label), 2000);
-});
+function exportButton(id, busy, make, filename) {
+  const btn = $(id), label = btn.textContent;
+  btn.addEventListener("click", async () => {
+    if (geometry().clean.length < 2) { btn.textContent = "أدخل نقطتين على الأقل"; setTimeout(() => (btn.textContent = label), 1800); return; }
+    btn.disabled = true; btn.textContent = busy;
+    try {
+      const cv = await svgToCanvas(buildExportSvg());
+      await saveFile(await make(cv), filename);
+      btn.textContent = "تم الحفظ";
+    } catch (err) {
+      btn.textContent = err && err.code === "declined" ? label : "تعذّر الحفظ، حاول مرة ثانية";
+    }
+    btn.disabled = false;
+    setTimeout(() => (btn.textContent = label), 2000);
+  });
+}
+exportButton("#pngBtn", "جاري تجهيز الصورة…", (cv) => canvasBlob(cv, "image/png"), "مخطط-قطعة-الأرض.png");
+exportButton("#pdfBtn", "جاري تجهيز الملف…", (cv) => canvasToPdfBlob(cv), "مخطط-قطعة-الأرض.pdf");
 
 renderTable();
 calc();
