@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>مخطط قطعة الأرض</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" />
+<style>
+  :root {
+    --bg: #EEF2F1;
+    --panel: #FFFFFF;
+    --ink: #17252A;
+    --muted: #5B6B6E;
+    --line: #D3DCDA;
+    --accent: #1F6F6A;
+    --accent-ink: #FFFFFF;
+    --land: #7A9A3A;
+    --land-fill: rgba(122, 154, 58, 0.16);
+    --grid: #DCE4E2;
+    --danger: #B3412E;
+    --font: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #111A1C; --panel: #182426; --ink: #E4ECEA; --muted: #93A5A6;
+      --line: #2A3A3C; --accent: #4FB3A9; --accent-ink: #0C1718;
+      --land: #A8C868; --land-fill: rgba(168, 200, 104, 0.14); --grid: #213033; --danger: #E07A63;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111A1C; --panel: #182426; --ink: #E4ECEA; --muted: #93A5A6;
+    --line: #2A3A3C; --accent: #4FB3A9; --accent-ink: #0C1718;
+    --land: #A8C868; --land-fill: rgba(168, 200, 104, 0.14); --grid: #213033; --danger: #E07A63;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55;
+    padding-inline: 16px; padding-block: 20px 40px;
+  }
+  .wrap { max-width: 1180px; margin-inline: auto; display: grid; gap: 18px; }
+  header h1 { margin: 0; font-size: 24px; font-weight: 700; text-wrap: balance; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+  .layout { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+  .panel h2 { margin: 0; font-size: 15px; font-weight: 700; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 6px 6px; border-bottom: 1px solid var(--line); text-align: center; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; letter-spacing: .02em; }
+  td input {
+    width: 100%; min-width: 110px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--ink); font-family: var(--mono); font-size: 13px; direction: ltr; text-align: left;
+  }
+  td input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  td input.bad { border-color: var(--danger); }
+  .idx { font-family: var(--mono); font-weight: 600; color: var(--accent); }
+
+  button {
+    font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+  button.del { padding: 4px 9px; color: var(--muted); }
+  button.del:hover { color: var(--danger); border-color: var(--danger); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  details summary { cursor: pointer; font-size: 14px; color: var(--accent); }
+  textarea {
+    width: 100%; min-height: 110px; margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--ink); font-family: var(--mono); font-size: 13px; direction: ltr; resize: vertical;
+  }
+  .opts { display: grid; gap: 6px; font-size: 14px; }
+  .opts label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat .k { color: var(--muted); font-size: 12px; letter-spacing: .02em; }
+  .stat .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; direction: ltr; text-align: right; }
+  .stat .u { font-size: 13px; color: var(--muted); font-family: var(--font); font-weight: 400; }
+
+  .drawing { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+  .drawing svg { display: block; width: 100%; height: auto; max-height: 72vh; }
+  .note { color: var(--danger); font-size: 13px; margin: 0; }
+  .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+  .results { display: grid; gap: 18px; min-width: 0; }
+  @media (prefers-reduced-motion: no-preference) { .land { transition: d .2s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>مخطط قطعة الأرض من الإحداثيات</h1>
+    <p>أدخل نقاط الزوايا بالترتيب حول القطعة، فتظهر الرسمة وأطوال الأضلاع والمساحة والزوايا مباشرة.</p>
+  </header>
+
+  <div class="layout">
+    <!-- Inputs -->
+    <section class="panel" aria-labelledby="inTitle">
+      <h2 id="inTitle">نقاط الزوايا</h2>
+      <p class="hint" id="sampleHint">النقطتان 1 و2 من ملفك، والنقطتان 3 و4 مثال للتجربة. استبدلها بإحداثياتك.</p>
+      <div class="scroll">
+        <table id="ptsTable">
+          <thead><tr><th>#</th><th>X</th><th>Y</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button class="primary" id="addBtn" type="button">+ إضافة نقطة</button>
+        <button id="clearBtn" type="button">مسح الكل</button>
+      </div>
+
+      <details id="pasteBox">
+        <summary>لصق مجموعة نقاط دفعة واحدة</summary>
+        <textarea id="pasteArea" placeholder="3988814.039  3762525.662&#10;3988848.391, 3762533.738&#10;..."></textarea>
+        <div class="actions" style="margin-top:8px">
+          <button id="pasteBtn" type="button">استبدال النقاط بهذه</button>
+        </div>
+        <p class="hint">كل سطر نقطة: X ثم Y، مفصولين بمسافة أو فاصلة أو Tab. يقبل الأرقام العربية ٠١٢٣.</p>
+      </details>
+
+      <div class="opts">
+        <label><input type="checkbox" id="closePoly" checked /> إغلاق الشكل (آخر نقطة إلى الأولى)</label>
+        <label><input type="checkbox" id="xNorth" /> X هو الإحداثي الشمالي (Northing) و Y الشرقي</label>
+        <label><input type="checkbox" id="showAngles" checked /> إظهار الزوايا على الرسمة</label>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <div class="results">
+      <div class="stats">
+        <div class="stat"><div class="k">المساحة</div><div class="v"><span id="sArea">—</span> <span class="u">م²</span></div></div>
+        <div class="stat"><div class="k">بالدونم</div><div class="v"><span id="sDunum">—</span> <span class="u">دونم</span></div></div>
+        <div class="stat"><div class="k">المحيط</div><div class="v"><span id="sPerim">—</span> <span class="u">م</span></div></div>
+        <div class="stat"><div class="k">عدد الأضلاع</div><div class="v"><span id="sEdges">—</span></div></div>
+      </div>
+
+      <div class="drawing">
+        <svg id="plot" viewBox="0 0 800 560" role="img" aria-label="رسمة قطعة الأرض"></svg>
+      </div>
+      <p class="note" id="warn" hidden></p>
+
+      <div class="two">
+        <section class="panel" aria-labelledby="edTitle">
+          <div class="actions" style="justify-content:space-between">
+            <h2 id="edTitle">أطوال الأضلاع</h2>
+            <button id="copyBtn" type="button">نسخ النتائج</button>
+          </div>
+          <div class="scroll">
+            <table id="edgesTable">
+              <thead><tr><th>الضلع</th><th>ΔX</th><th>ΔY</th><th>الطول (م)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="anTitle">
+          <h2 id="anTitle">الزوايا الداخلية</h2>
+          <div class="scroll">
+            <table id="anglesTable">
+              <thead><tr><th>النقطة</th><th>الزاوية</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="hint" id="angSum"></p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let pts = [
+  { x: "3988814.039", y: "3762525.662" },
+  { x: "3988848.391", y: "3762533.738" },
+  { x: "3988841.205", y: "3762562.410" },
+  { x: "3988809.870", y: "3762553.115" },
+];
+
+const $ = (s) => document.querySelector(s);
+const toLatin = (s) => String(s)
+  .replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 0x0660)
+  .replace(/[۰-۹]/g, (d) => d.charCodeAt(0) - 0x06F0)
+  .replace(/٫/g, ".").replace(/٬/g, "").trim();
+const parseNum = (s) => { const t = toLatin(s); return t === "" ? NaN : Number(t); };
+const fmt = (n, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function renderTable() {
+  const tb = $("#ptsTable tbody");
+  tb.innerHTML = "";
+  pts.forEach((p, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="idx">${i + 1}</td>
+      <td><input id="px${i}" inputmode="decimal" aria-label="X للنقطة ${i + 1}"></td>
+      <td><input id="py${i}" inputmode="decimal" aria-label="Y للنقطة ${i + 1}"></td>
+      <td><button class="del" type="button" aria-label="حذف النقطة ${i + 1}">✕</button></td>`;
+    const [ix, iy] = tr.querySelectorAll("input");
+    ix.value = p.x; iy.value = p.y;
+    ix.addEventListener("input", () => { pts[i].x = ix.value; hideSample(); calc(); });
+    iy.addEventListener("input", () => { pts[i].y = iy.value; hideSample(); calc(); });
+    tr.querySelector("button").addEventListener("click", () => { pts.splice(i, 1); hideSample(); renderTable(); calc(); });
+    tb.appendChild(tr);
+  });
+}
+function hideSample() { $("#sampleHint").hidden = true; }
+
+// ---------- geometry ----------
+function geometry() {
+  const clean = [];
+  pts.forEach((p, i) => {
+    const x = parseNum(p.x), y = parseNum(p.y);
+    const ok = Number.isFinite(x) && Number.isFinite(y);
+    const ix = document.getElementById("px" + i), iy = document.getElementById("py" + i);
+    if (ix) ix.classList.toggle("bad", p.x !== "" && !Number.isFinite(parseNum(p.x)));
+    if (iy) iy.classList.toggle("bad", p.y !== "" && !Number.isFinite(parseNum(p.y)));
+    if (ok) clean.push({ x, y, n: i + 1 });
+  });
+  const xNorth = $("#xNorth").checked;
+  // e = east (horizontal), n = north (vertical)
+  clean.forEach((p) => { p.e = xNorth ? p.y : p.x; p.nn = xNorth ? p.x : p.y; });
+
+  const closed = $("#closePoly").checked && clean.length >= 3;
+  const edges = [];
+  const count = closed ? clean.length : clean.length - 1;
+  for (let i = 0; i < count; i++) {
+    const a = clean[i], b = clean[(i + 1) % clean.length];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    edges.push({ a, b, dx, dy, d: Math.hypot(dx, dy) });
+  }
+
+  let area2 = 0; // signed, in (e, n) frame: positive = counter-clockwise
+  if (closed) for (let i = 0; i < clean.length; i++) {
+    const a = clean[i], b = clean[(i + 1) % clean.length];
+    area2 += a.e * b.nn - b.e * a.nn;
+  }
+  const orient = Math.sign(area2) || 1;
+
+  const angles = [];
+  if (closed) for (let i = 0; i < clean.length; i++) {
+    const p = clean[(i - 1 + clean.length) % clean.length], c = clean[i], q = clean[(i + 1) % clean.length];
+    const ux = p.e - c.e, uy = p.nn - c.nn, vx = q.e - c.e, vy = q.nn - c.nn;
+    const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+    if (!lu || !lv) { angles.push({ c, deg: NaN }); continue; }
+    let th = Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)))) * 180 / Math.PI;
+    const turn = (c.e - p.e) * (q.nn - c.nn) - (c.nn - p.nn) * (q.e - c.e);
+    if (Math.sign(turn) === -orient) th = 360 - th; // reflex corner
+    angles.push({ c, deg: th });
+  }
+  return { clean, edges, closed, area: Math.abs(area2) / 2, orient, angles };
+}
+
+function dms(deg) {
+  let d = Math.floor(deg), mf = (deg - d) * 60, m = Math.floor(mf), s = Math.round((mf - m) * 60);
+  if (s === 60) { s = 0; m++; } if (m === 60) { m = 0; d++; }
+  return `${d}° ${String(m).padStart(2, "0")}′ ${String(s).padStart(2, "0")}″`;
+}
+
+// ---------- drawing ----------
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+function niceStep(v) {
+  const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p;
+  return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * p;
+}
+
+function draw(g) {
+  const svg = $("#plot");
+  svg.innerHTML = "";
+  const W = 800, H = 560, pad = 80;
+  const { clean, edges, closed, orient, angles } = g;
+  if (clean.length < 2) {
+    svg.appendChild(el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", fill: "var(--muted)", "font-size": 18, "font-family": "var(--font)" }, "أدخل نقطتين على الأقل لتظهر الرسمة"));
+    return;
+  }
+  const es = clean.map((p) => p.e), ns = clean.map((p) => p.nn);
+  const minE = Math.min(...es), maxE = Math.max(...es), minN = Math.min(...ns), maxN = Math.max(...ns);
+  const spanE = Math.max(maxE - minE, 1e-9), spanN = Math.max(maxN - minN, 1e-9);
+  const s = Math.min((W - 2 * pad) / spanE, (H - 2 * pad) / spanN);
+  const ox = (W - spanE * s) / 2, oy = (H - spanN * s) / 2;
+  const X = (e) => ox + (e - minE) * s, Y = (n) => oy + (maxN - n) * s;
+
+  // grid in real metres
+  const step = niceStep(Math.max(spanE, spanN) / 5);
+  const gGrid = el("g", { stroke: "var(--grid)", "stroke-width": 1 });
+  for (let e = Math.ceil((minE - pad / s) / step) * step; X(e) < W; e += step) gGrid.appendChild(el("line", { x1: X(e), y1: 0, x2: X(e), y2: H }));
+  for (let n = Math.ceil((minN - pad / s) / step) * step; Y(n) > 0; n += step) gGrid.appendChild(el("line", { x1: 0, y1: Y(n), x2: W, y2: Y(n) }));
+  svg.appendChild(gGrid);
+
+  // land shape
+  const d = clean.map((p, i) => `${i ? "L" : "M"}${X(p.e).toFixed(2)},${Y(p.nn).toFixed(2)}`).join(" ") + (closed ? " Z" : "");
+  svg.appendChild(el("path", { class: "land", d, fill: closed ? "var(--land-fill)" : "none", stroke: "var(--land)", "stroke-width": 2.5, "stroke-linejoin": "round" }));
+
+  // centroid-ish for outward direction when not closed
+  const cx = es.reduce((a, b) => a + b, 0) / es.length, cn = ns.reduce((a, b) => a + b, 0) / ns.length;
+
+  // edge labels
+  edges.forEach((ed) => {
+    const x1 = X(ed.a.e), y1 = Y(ed.a.nn), x2 = X(ed.b.e), y2 = Y(ed.b.nn);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+    // outward normal in screen space
+    let nx = (y2 - y1) / len, ny = -(x2 - x1) / len;
+    if (closed) { if (orient < 0) { nx = -nx; ny = -ny; } }
+    else if ((mx - X(cx)) * nx + (my - Y(cn)) * ny < 0) { nx = -nx; ny = -ny; }
+    // screen y is flipped vs. world, so CCW in world is CW on screen
+    let ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+    const lx = mx + nx * 16, ly = my + ny * 16;
+    const t = el("text", {
+      x: lx, y: ly, transform: `rotate(${ang.toFixed(2)} ${lx.toFixed(2)} ${ly.toFixed(2)})`,
+      "text-anchor": "middle", "dominant-baseline": "middle", fill: "var(--ink)",
+      "font-family": "var(--mono)", "font-size": 15, "font-weight": 600,
+      stroke: "var(--panel)", "stroke-width": 4, "paint-order": "stroke", direction: "ltr",
+    }, `\u200E${fmt(ed.d)} m`);
+    svg.appendChild(t);
+  });
+
+  // angle labels (inside corners)
+  if ($("#showAngles").checked && closed) angles.forEach((a, i) => {
+    if (!Number.isFinite(a.deg)) return;
+    const p = clean[(i - 1 + clean.length) % clean.length], q = clean[(i + 1) % clean.length], c = a.c;
+    const ux = X(p.e) - X(c.e), uy = Y(p.nn) - Y(c.nn), vx = X(q.e) - X(c.e), vy = Y(q.nn) - Y(c.nn);
+    const lu = Math.hypot(ux, uy) || 1, lv = Math.hypot(vx, vy) || 1;
+    let bx = ux / lu + vx / lv, by = uy / lu + vy / lv, bl = Math.hypot(bx, by);
+    if (bl < 1e-6) { bx = -uy / lu; by = ux / lu; bl = 1; }
+    bx /= bl; by /= bl;
+    if (a.deg > 180) { bx = -bx; by = -by; }
+    const r = 34;
+    svg.appendChild(el("text", {
+      x: X(c.e) + bx * r, y: Y(c.nn) + by * r, "text-anchor": "middle", "dominant-baseline": "middle",
+      fill: "var(--muted)", "font-family": "var(--mono)", "font-size": 12, direction: "ltr",
+    }, `\u200E${a.deg.toFixed(1)}°`));
+  });
+
+  // vertices
+  clean.forEach((p) => {
+    const x = X(p.e), y = Y(p.nn);
+    let vx = x - X(cx), vy = y - Y(cn), vl = Math.hypot(vx, vy) || 1;
+    svg.appendChild(el("circle", { cx: x, cy: y, r: 5, fill: "var(--accent)", stroke: "var(--panel)", "stroke-width": 2 }));
+    const lx = x + (vx / vl) * 18, ly = y + (vy / vl) * 18;
+    svg.appendChild(el("circle", { cx: lx, cy: ly, r: 11, fill: "var(--accent)" }));
+    svg.appendChild(el("text", { x: lx, y: ly + 0.5, "text-anchor": "middle", "dominant-baseline": "middle", fill: "var(--accent-ink)", "font-family": "var(--mono)", "font-size": 12, "font-weight": 600 }, p.n));
+  });
+
+  // north arrow (top-left)
+  const na = el("g", { transform: "translate(40 34)" });
+  na.appendChild(el("path", { d: "M0,-18 L9,14 L0,7 L-9,14 Z", fill: "var(--ink)" }));
+  na.appendChild(el("text", { x: 0, y: 32, "text-anchor": "middle", fill: "var(--ink)", "font-family": "var(--mono)", "font-size": 13, "font-weight": 600 }, "N"));
+  svg.appendChild(na);
+
+  // scale bar (bottom-left)
+  const sb = niceStep(spanE / 3 || 1), sbPx = sb * s;
+  const sg = el("g", { transform: `translate(24 ${H - 26})` });
+  sg.appendChild(el("rect", { x: 0, y: -5, width: sbPx / 2, height: 6, fill: "var(--ink)" }));
+  sg.appendChild(el("rect", { x: sbPx / 2, y: -5, width: sbPx / 2, height: 6, fill: "var(--panel)", stroke: "var(--ink)", "stroke-width": 1 }));
+  sg.appendChild(el("text", { x: 0, y: -12, fill: "var(--muted)", "font-family": "var(--mono)", "font-size": 11, "text-anchor": "middle" }, "0"));
+  sg.appendChild(el("text", { x: sbPx, y: -12, fill: "var(--muted)", "font-family": "var(--mono)", "font-size": 11, "text-anchor": "middle", direction: "ltr" }, `${sb} m`));
+  svg.appendChild(sg);
+}
+
+// ---------- results ----------
+let lastText = "";
+function calc() {
+  const g = geometry();
+  const { clean, edges, closed, area, angles } = g;
+  const perim = edges.reduce((a, e) => a + e.d, 0);
+
+  $("#sArea").textContent = closed ? fmt(area) : "—";
+  $("#sDunum").textContent = closed ? fmt(area / 1000, 3) : "—";
+  $("#sPerim").textContent = edges.length ? fmt(perim) : "—";
+  $("#sEdges").textContent = edges.length || "—";
+
+  const warn = $("#warn");
+  const bad = pts.length - clean.length;
+  const msgs = [];
+  if (bad > 0) msgs.push(`${bad} نقطة غير مكتملة أو فيها رقم غير صحيح ولم تدخل في الحساب.`);
+  if (clean.length >= 3 && !$("#closePoly").checked) msgs.push("الشكل غير مغلق، لذلك لا تُحسب المساحة والزوايا.");
+  if (closed && selfIntersects(clean)) msgs.push("الأضلاع تتقاطع مع بعضها. تأكد أن النقاط مرتبة حول القطعة (مع أو عكس عقارب الساعة).");
+  warn.textContent = msgs.join(" ");
+  warn.hidden = !msgs.length;
+
+  const tb = $("#edgesTable tbody");
+  tb.innerHTML = "";
+  edges.forEach((e) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="num">${e.a.n}–${e.b.n}</td><td class="num">${fmt(e.dx, 3)}</td><td class="num">${fmt(e.dy, 3)}</td><td class="num"><b>${fmt(e.d)}</b></td>`;
+    tb.appendChild(tr);
+  });
+
+  const ta = $("#anglesTable tbody");
+  ta.innerHTML = "";
+  angles.forEach((a) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="idx">${a.c.n}</td><td class="num">${Number.isFinite(a.deg) ? `${a.deg.toFixed(2)}° &nbsp;(${dms(a.deg)})` : "—"}</td>`;
+    ta.appendChild(tr);
+  });
+  const sum = angles.reduce((s, a) => s + (a.deg || 0), 0);
+  $("#angSum").textContent = angles.length ? `مجموع الزوايا ${sum.toFixed(2)}° (المفروض ${(angles.length - 2) * 180}° لشكل بـ ${angles.length} أضلاع)` : "تظهر الزوايا عند وجود 3 نقاط أو أكثر مع إغلاق الشكل.";
+
+  lastText = [
+    "أطوال الأضلاع:",
+    ...edges.map((e) => `${e.a.n}-${e.b.n}: ${fmt(e.d)} م`),
+    `المحيط: ${fmt(perim)} م`,
+    closed ? `المساحة: ${fmt(area)} م² = ${fmt(area / 1000, 3)} دونم` : "",
+  ].filter(Boolean).join("\n");
+
+  draw(g);
+}
+
+function selfIntersects(p) {
+  const n = p.length;
+  const cross = (a, b, c) => (b.e - a.e) * (c.nn - a.nn) - (b.nn - a.nn) * (c.e - a.e);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    if (j === i + 1 || (i === 0 && j === n - 1)) continue;
+    const a = p[i], b = p[(i + 1) % n], c = p[j], d = p[(j + 1) % n];
+    if (cross(a, b, c) * cross(a, b, d) < 0 && cross(c, d, a) * cross(c, d, b) < 0) return true;
+  }
+  return false;
+}
+
+// ---------- events ----------
+$("#addBtn").addEventListener("click", () => {
+  pts.push({ x: "", y: "" }); renderTable(); calc();
+  document.getElementById("px" + (pts.length - 1)).focus();
+});
+$("#clearBtn").addEventListener("click", () => { pts = [{ x: "", y: "" }, { x: "", y: "" }, { x: "", y: "" }]; hideSample(); renderTable(); calc(); });
+$("#pasteBtn").addEventListener("click", () => {
+  const rows = toLatin($("#pasteArea").value).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    .map((l) => l.split(/[\s,;]+/).filter(Boolean))
+    .filter((c) => c.length >= 2)
+    .map((c) => c.length >= 3 && !Number.isFinite(Number(c[0])) ? c.slice(1) : c) // skip a leading point name
+    .map((c) => c.length >= 3 && Number(c[0]) < 1000 && Number(c[1]) > 1000 ? c.slice(1) : c) // skip a leading point number
+    .map((c) => ({ x: c[0], y: c[1] }));
+  if (!rows.length) return;
+  pts = rows; hideSample(); renderTable(); calc();
+  $("#pasteBox").open = false;
+});
+["#closePoly", "#xNorth", "#showAngles"].forEach((s) => $(s).addEventListener("change", calc));
+$("#copyBtn").addEventListener("click", async () => {
+  const btn = $("#copyBtn");
+  try { await navigator.clipboard.writeText(lastText); btn.textContent = "تم النسخ"; }
+  catch { $("#pasteArea").value = lastText; $("#pasteBox").open = true; $("#pasteArea").select(); btn.textContent = "حدد النص وانسخه"; }
+  setTimeout(() => (btn.textContent = "نسخ النتائج"), 1800);
+});
+
+renderTable();
+calc();
+</script>
+</body>
+</html>
