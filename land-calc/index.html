@@ -95,6 +95,22 @@
   .stat .u { font-size: 13px; color: var(--muted); font-family: var(--font); font-weight: 400; }
 
   .drawing { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+  .col { display: grid; gap: 18px; min-width: 0; }
+  .namerow { display: grid; gap: 4px; }
+  .namerow label { font-size: 13px; color: var(--muted); }
+  .namerow input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-weight: 500; }
+  .namerow input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  .saved { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .saved li { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+  .saved li.current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .saved .nm { font-weight: 700; overflow-wrap: anywhere; }
+  .saved .meta { color: var(--muted); font-size: 12.5px; }
+  .saved .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .saved button { padding: 5px 12px; font-size: 13px; }
+  .saved button.danger { color: var(--danger); border-color: var(--danger); }
+  .saved .empty { color: var(--muted); font-size: 13.5px; border: 1px dashed var(--line); }
+  .filebtn { font-size: 14px; padding: 8px 14px; border-radius: 7px; cursor: pointer; border: 1px solid var(--line); }
+  .filebtn:hover { border-color: var(--accent); }
   .drawbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 6px 6px; }
   .dims { border-top: 1px solid var(--line); margin-top: 6px; padding: 12px 8px 6px; display: grid; gap: 10px; }
   .dims .sum { font-weight: 700; font-size: 15px; }
@@ -119,7 +135,18 @@
 
   <div class="layout">
     <!-- Inputs -->
+    <div class="col">
     <section class="panel" aria-labelledby="inTitle">
+      <div class="namerow">
+        <label for="parcelName">اسم الأرض</label>
+        <input id="parcelName" type="text" placeholder="مثلاً: أرض شفا بدران – حوض 5" autocomplete="off" />
+      </div>
+      <div class="actions">
+        <button class="primary" id="saveBtn" type="button">حفظ الأرض</button>
+        <button id="saveNewBtn" type="button" hidden>حفظ كأرض جديدة</button>
+        <button id="newBtn" type="button">أرض جديدة</button>
+      </div>
+      <p class="hint" id="saveMsg" hidden></p>
       <h2 id="inTitle">نقاط الزوايا</h2>
       <p class="hint" id="sampleHint">النقطتان 1 و2 من ملفك، والنقطتان 3 و4 مثال للتجربة. استبدلها بإحداثياتك.</p>
       <div class="scroll">
@@ -150,6 +177,19 @@
         <label><input type="checkbox" id="showAngles" checked /> إظهار الزوايا على الرسمة</label>
       </div>
     </section>
+
+    <section class="panel" aria-labelledby="svTitle">
+      <h2 id="svTitle">الأراضي المحفوظة</h2>
+      <p class="hint" id="storeNote"></p>
+      <ul class="saved" id="savedList"></ul>
+      <div class="actions">
+        <button id="backupBtn" type="button">تنزيل نسخة احتياطية</button>
+        <label class="filebtn" for="importFile">استيراد نسخة احتياطية</label>
+        <input id="importFile" type="file" accept=".json,application/json" hidden />
+      </div>
+      <p class="hint" id="backupMsg" hidden></p>
+    </section>
+    </div>
 
     <!-- Results -->
     <div class="results">
@@ -445,6 +485,7 @@ function calc() {
   ].filter(Boolean).join("\n");
 
   draw(g);
+  saveDraft();
 }
 
 function selfIntersects(p) {
@@ -554,7 +595,7 @@ function buildExportSvg() {
 
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
   out += `<rect width="${W}" height="${H}" fill="#FFFFFF"/>`;
-  out += `<text x="${W - 40}" y="56" text-anchor="start" direction="rtl" font-family="${F}" font-size="30" font-weight="700" fill="#17252A">مخطط قطعة الأرض</text>`;
+  out += `<text x="${W - 40}" y="56" text-anchor="start" direction="rtl" font-family="${F}" font-size="30" font-weight="700" fill="#17252A">${esc(exportTitle())}</text>`;
   out += `<text x="40" y="56" font-family="${M}" font-size="16" fill="#5B6B6E">${today}</text>`;
   out += `<line x1="40" y1="${head - 10}" x2="${W - 40}" y2="${head - 10}" stroke="#D3DCDA" stroke-width="1.5"/>`;
   out += `<g transform="translate(0 ${head}) scale(1.5)">${inner}</g>`;
@@ -640,8 +681,11 @@ async function saveFile(blob, filename) {
   let dl = null;
   try { dl = window.claude?.use ? await window.claude.use("downloads") : null; } catch { dl = null; }
   if (dl) return dl.save({ filename, data: blob });
+  // Plain-link fallback (local file): some browsers drop non-Latin download names, so use a Latin one.
+  const ext = (filename.match(/\.[a-z0-9]+$/i) || [""])[0];
+  const safe = /^[\x20-\x7E]+$/.test(filename) ? filename : `land-plot-${new Date().toISOString().slice(0, 10)}${ext}`;
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = filename;
+  a.href = URL.createObjectURL(blob); a.download = safe;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
@@ -653,7 +697,7 @@ function exportButton(id, busy, make, filename) {
     btn.disabled = true; btn.textContent = busy;
     try {
       const cv = await svgToCanvas(buildExportSvg());
-      await saveFile(await make(cv), filename);
+      await saveFile(await make(cv), filename());
       btn.textContent = "تم الحفظ";
     } catch (err) {
       btn.textContent = err && err.code === "declined" ? label : "تعذّر الحفظ، حاول مرة ثانية";
@@ -662,11 +706,234 @@ function exportButton(id, busy, make, filename) {
     setTimeout(() => (btn.textContent = label), 2000);
   });
 }
-exportButton("#pngBtn", "جاري تجهيز الصورة…", (cv) => canvasBlob(cv, "image/png"), "مخطط-قطعة-الأرض.png");
-exportButton("#pdfBtn", "جاري تجهيز الملف…", (cv) => canvasToPdfBlob(cv), "مخطط-قطعة-الأرض.pdf");
+exportButton("#pngBtn", "جاري تجهيز الصورة…", (cv) => canvasBlob(cv, "image/png"), () => exportFileBase() + ".png");
+exportButton("#pdfBtn", "جاري تجهيز الملف…", (cv) => canvasToPdfBlob(cv), () => exportFileBase() + ".pdf");
 
+// ---------- saved parcels ----------
+const LS_KEY = "landParcels.v1", DRAFT_KEY = "landDraft.v1";
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
+const newId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+let parcels = [];
+let currentId = null;
+
+function exportTitle() {
+  const n = $("#parcelName").value.trim();
+  return n ? `مخطط قطعة الأرض: ${n}` : "مخطط قطعة الأرض";
+}
+function exportFileBase() {
+  const n = $("#parcelName").value.trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80);
+  return n ? `مخطط-${n}` : "مخطط-قطعة-الأرض";
+}
+function rawArea(points) {
+  const q = points.map((p) => ({ x: parseNum(p.x), y: parseNum(p.y) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (q.length < 3) return null;
+  let a = 0;
+  for (let i = 0; i < q.length; i++) { const u = q[i], v = q[(i + 1) % q.length]; a += u.x * v.y - v.x * u.y; }
+  return Math.abs(a) / 2;
+}
+
+// Two backends: the artifact's database when the page runs as a published link, otherwise this browser.
+const localStore = {
+  kind: "local",
+  async save(doc) {
+    const all = lsGet(LS_KEY, []).filter((q) => q.id !== doc.id);
+    all.push(doc);
+    if (!lsSet(LS_KEY, all)) throw new Error("storage");
+    setParcels(all);
+  },
+  async remove(id) { lsSet(LS_KEY, lsGet(LS_KEY, []).filter((q) => q.id !== id)); setParcels(lsGet(LS_KEY, [])); },
+  start() { setParcels(lsGet(LS_KEY, [])); },
+};
+function dbStore(dbase) {
+  const col = dbase.collection("parcels");
+  return {
+    kind: "db",
+    async save(doc) { const { id, ...body } = doc; await col.doc(id).set(body); },
+    async remove(id) { await col.doc(id).delete(); },
+    start() {
+      col.onSnapshot(
+        (snap) => setParcels(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        () => { store = localStore; localStore.start(); updateStoreNote(); },
+      );
+    },
+  };
+}
+let store = localStore;
+
+function updateStoreNote() {
+  $("#storeNote").textContent = store.kind === "db"
+    ? "الأراضي محفوظة على هذا الرابط، وتظهر لك من أي جهاز تفتحه منه."
+    : "الأراضي محفوظة في هذا المتصفح على هذا الجهاز. نزّل نسخة احتياطية من وقت لآخر حتى ما تضيع إذا انمسحت بيانات المتصفح.";
+}
+function setParcels(list) {
+  parcels = list.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  renderSaved();
+}
+function flash(sel, text, ms = 2600) {
+  const m = $(sel); m.textContent = text; m.hidden = false;
+  clearTimeout(m._t); m._t = setTimeout(() => (m.hidden = true), ms);
+}
+
+function renderSaved() {
+  const ul = $("#savedList");
+  ul.innerHTML = "";
+  $("#saveNewBtn").hidden = !currentId;
+  $("#saveBtn").textContent = currentId ? "حفظ التعديلات" : "حفظ الأرض";
+  if (!parcels.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "ما في أراضي محفوظة بعد. اكتب اسم الأرض فوق واضغط \"حفظ الأرض\".";
+    ul.appendChild(li);
+    return;
+  }
+  parcels.forEach((p) => {
+    const li = document.createElement("li");
+    if (p.id === currentId) li.className = "current";
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = p.name || "أرض بدون اسم";
+    const area = rawArea(p.points || []);
+    const meta = document.createElement("div"); meta.className = "meta";
+    meta.textContent = `${(p.points || []).length} نقاط`
+      + (area != null ? ` · ${fmt(area)} م² (${fmt(area / 1000, 3)} دونم)` : "")
+      + (p.updatedAt ? ` · ${new Date(p.updatedAt).toLocaleDateString("en-GB")}` : "");
+    const row = document.createElement("div"); row.className = "row";
+    const open = document.createElement("button"); open.type = "button";
+    open.textContent = p.id === currentId ? "مفتوحة الآن" : "فتح";
+    open.disabled = p.id === currentId;
+    open.addEventListener("click", () => openParcel(p));
+    const del = document.createElement("button"); del.type = "button"; del.textContent = "حذف";
+    del.addEventListener("click", async () => {
+      if (!del.classList.contains("danger")) {
+        del.classList.add("danger"); del.textContent = "تأكيد الحذف";
+        setTimeout(() => { del.classList.remove("danger"); del.textContent = "حذف"; }, 4000);
+        return;
+      }
+      try {
+        await store.remove(p.id);
+        if (currentId === p.id) { currentId = null; saveDraft(); renderSaved(); }
+      } catch { flash("#backupMsg", "ما قدرت أحذفها. حاول مرة ثانية."); }
+    });
+    row.append(open, del);
+    li.append(nm, meta, row);
+    ul.appendChild(li);
+  });
+}
+
+function openParcel(p) {
+  pts = (p.points || []).map((q) => ({ x: String(q.x), y: String(q.y) }));
+  if (!pts.length) pts = [{ x: "", y: "" }];
+  $("#parcelName").value = p.name || "";
+  $("#xNorth").checked = !!p.xNorth;
+  $("#closePoly").checked = p.closed !== false;
+  currentId = p.id;
+  hideSample(); renderTable(); calc(); renderSaved();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function saveParcel(asNew) {
+  const points = pts
+    .map((q) => ({ x: toLatin(q.x), y: toLatin(q.y) }))
+    .filter((q) => q.x !== "" || q.y !== "");
+  if (!points.length) { flash("#saveMsg", "الجدول فاضي. أدخل الإحداثيات أولاً."); return; }
+  const name = $("#parcelName").value.trim() || `أرض ${new Date().toLocaleDateString("en-GB")}`;
+  $("#parcelName").value = name;
+  const doc = {
+    id: asNew || !currentId ? newId() : currentId,
+    name, points,
+    xNorth: $("#xNorth").checked, closed: $("#closePoly").checked,
+    updatedAt: Date.now(),
+  };
+  const btn = asNew ? $("#saveNewBtn") : $("#saveBtn");
+  btn.disabled = true;
+  try {
+    await store.save(doc);
+    currentId = doc.id;
+    saveDraft(); renderSaved();
+    flash("#saveMsg", `انحفظت "${name}".`);
+  } catch (err) {
+    flash("#saveMsg", err && err.code === "quota_exceeded"
+      ? "وصلت للحد الأقصى من الأراضي المحفوظة. احذف أرضاً قديمة وحاول مرة ثانية."
+      : "ما قدرت أحفظ. حاول مرة ثانية.", 5000);
+  }
+  btn.disabled = false;
+}
+$("#saveBtn").addEventListener("click", () => saveParcel(false));
+$("#saveNewBtn").addEventListener("click", () => saveParcel(true));
+$("#newBtn").addEventListener("click", () => {
+  pts = [{ x: "", y: "" }, { x: "", y: "" }, { x: "", y: "" }, { x: "", y: "" }];
+  $("#parcelName").value = "";
+  currentId = null;
+  hideSample(); renderTable(); calc(); renderSaved();
+  $("#parcelName").focus();
+});
+$("#parcelName").addEventListener("input", saveDraft);
+
+// Unsaved work in the table survives a reload (this browser only).
+function saveDraft() {
+  lsSet(DRAFT_KEY, { sample: !$("#sampleHint").hidden, pts, name: $("#parcelName").value, currentId, xNorth: $("#xNorth").checked, closed: $("#closePoly").checked });
+}
+function loadDraft() {
+  const d = lsGet(DRAFT_KEY, null);
+  if (!d || !Array.isArray(d.pts)) return;
+  pts = d.pts.map((q) => ({ x: String(q.x ?? ""), y: String(q.y ?? "") }));
+  $("#parcelName").value = d.name || "";
+  currentId = d.currentId || null;
+  $("#xNorth").checked = !!d.xNorth;
+  $("#closePoly").checked = d.closed !== false;
+  if (!d.sample) hideSample();
+}
+
+// Backup: download all saved parcels as JSON, or bring them back from one.
+$("#backupBtn").addEventListener("click", async () => {
+  if (!parcels.length) { flash("#backupMsg", "ما في أراضي محفوظة لتنزيلها."); return; }
+  const data = JSON.stringify({ app: "land-plot", version: 1, savedAt: new Date().toISOString(), parcels }, null, 2);
+  try { await saveFile(new Blob([data], { type: "application/json" }), `أراضي-محفوظة-${new Date().toISOString().slice(0, 10)}.json`); flash("#backupMsg", `تنزّلت نسخة فيها ${parcels.length} أرض.`); }
+  catch (err) { if (!(err && err.code === "declined")) flash("#backupMsg", "ما قدرت أنزّل النسخة. حاول مرة ثانية."); }
+});
+$("#importFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const json = JSON.parse(await file.text());
+    const list = (Array.isArray(json) ? json : json.parcels || []).filter((p) => p && Array.isArray(p.points));
+    if (!list.length) throw new Error("empty");
+    for (const p of list) {
+      await store.save({
+        id: /^[A-Za-z0-9_\-.~:@+]{1,100}$/.test(p.id || "") ? p.id : newId(),
+        name: String(p.name || "أرض بدون اسم"),
+        points: p.points.map((q) => ({ x: String(q.x ?? ""), y: String(q.y ?? "") })),
+        xNorth: !!p.xNorth, closed: p.closed !== false, updatedAt: Number(p.updatedAt) || Date.now(),
+      });
+    }
+    flash("#backupMsg", `انضافت ${list.length} أرض من الملف.`);
+  } catch {
+    flash("#backupMsg", "الملف مش نسخة احتياطية من هذي الصفحة. اختر ملف .json نزّلته من زر \"تنزيل نسخة احتياطية\".", 5000);
+  }
+});
+
+loadDraft();
 renderTable();
 calc();
+updateStoreNote();
+localStore.start();
+
+// On the published link, switch to the artifact's database (and move anything saved locally into it).
+(async () => {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const dbase = await window.claude.use("db");
+    if (!dbase) return;
+    const s = dbStore(dbase);
+    const local = lsGet(LS_KEY, []);
+    let ok = true;
+    for (const p of local) { try { await s.save(p); } catch { ok = false; } }
+    if (local.length && ok) lsSet(LS_KEY, []);
+    store = s;
+    s.start();
+    updateStoreNote();
+  } catch { /* stay on browser storage */ }
+})();
 </script>
 </body>
 </html>
