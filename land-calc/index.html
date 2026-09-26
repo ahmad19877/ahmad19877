@@ -95,6 +95,7 @@
   .stat .u { font-size: 13px; color: var(--muted); font-family: var(--font); font-weight: 400; }
 
   .drawing { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+  .drawbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 6px 6px; }
   .drawing svg { display: block; width: 100%; height: auto; max-height: 72vh; }
   .note { color: var(--danger); font-size: 13px; margin: 0; }
   .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
@@ -152,6 +153,10 @@
       </div>
 
       <div class="drawing">
+        <div class="drawbar">
+          <span class="hint">الرسمة</span>
+          <button class="primary" id="pngBtn" type="button">تحميل الرسمة كصورة</button>
+        </div>
         <svg id="plot" viewBox="0 0 800 560" role="img" aria-label="رسمة قطعة الأرض"></svg>
       </div>
       <p class="note" id="warn" hidden></p>
@@ -462,6 +467,96 @@ $("#copyBtn").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(lastText); btn.textContent = "تم النسخ"; }
   catch { $("#pasteArea").value = lastText; $("#pasteBox").open = true; $("#pasteArea").select(); btn.textContent = "حدد النص وانسخه"; }
   setTimeout(() => (btn.textContent = "نسخ النتائج"), 1800);
+});
+
+// ---------- export drawing as PNG ----------
+const EXPORT_COLORS = {
+  "--bg": "#FFFFFF", "--panel": "#FFFFFF", "--ink": "#17252A", "--muted": "#5B6B6E",
+  "--accent": "#1F6F6A", "--accent-ink": "#FFFFFF", "--land": "#5E7F22",
+  "--land-fill": "rgba(122,154,58,0.16)", "--grid": "#E3E9E8",
+  "--font": "'IBM Plex Sans Arabic', Tahoma, Arial, sans-serif",
+  "--mono": "'IBM Plex Mono', Consolas, 'Courier New', monospace",
+};
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function buildExportSvg() {
+  const g = geometry();
+  const { edges, closed, area } = g;
+  const perim = edges.reduce((a, e) => a + e.d, 0);
+  const W = 1200, head = 96, drawH = 840, cols = 3, rowH = 34;
+  const rows = Math.ceil(edges.length / cols);
+  const foot = 130 + rows * rowH;
+  const H = head + drawH + foot;
+  const F = EXPORT_COLORS["--font"], M = EXPORT_COLORS["--mono"];
+  const inner = new XMLSerializer().serializeToString($("#plot"))
+    .replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "")
+    .replace(/var\((--[a-z-]+)\)/g, (m, k) => EXPORT_COLORS[k] || m);
+  const today = new Date().toLocaleDateString("en-GB");
+
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  out += `<rect width="${W}" height="${H}" fill="#FFFFFF"/>`;
+  out += `<text x="${W - 40}" y="56" text-anchor="start" direction="rtl" font-family="${F}" font-size="30" font-weight="700" fill="#17252A">مخطط قطعة الأرض</text>`;
+  out += `<text x="40" y="56" font-family="${M}" font-size="16" fill="#5B6B6E">${today}</text>`;
+  out += `<line x1="40" y1="${head - 10}" x2="${W - 40}" y2="${head - 10}" stroke="#D3DCDA" stroke-width="1.5"/>`;
+  out += `<g transform="translate(0 ${head}) scale(1.5)">${inner}</g>`;
+
+  let y = head + drawH + 44;
+  out += `<line x1="40" y1="${head + drawH + 6}" x2="${W - 40}" y2="${head + drawH + 6}" stroke="#D3DCDA" stroke-width="1.5"/>`;
+  const summary = (closed ? `المساحة: ${fmt(area)} م² (${fmt(area / 1000, 3)} دونم)   ·   ` : "") + `المحيط: ${fmt(perim)} م   ·   عدد الأضلاع: ${edges.length}`;
+  out += `<text x="${W - 40}" y="${y}" text-anchor="start" direction="rtl" font-family="${F}" font-size="22" font-weight="700" fill="#17252A">${esc(summary)}</text>`;
+  y += 46;
+  out += `<text x="${W - 40}" y="${y}" text-anchor="start" direction="rtl" font-family="${F}" font-size="17" fill="#5B6B6E">أطوال الأضلاع (م)</text>`;
+  y += 10;
+  const colW = (W - 80) / cols;
+  edges.forEach((e, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    const x = W - 40 - c * colW, ty = y + (r + 1) * rowH;
+    out += `<text x="${x}" y="${ty}" text-anchor="start" direction="rtl" font-family="${F}" font-size="19" fill="#17252A">`
+      + `<tspan fill="#1F6F6A" font-weight="700">‎${e.a.n}–${e.b.n}</tspan>  :  <tspan font-family="${M}" font-weight="600">‎${fmt(e.d)}</tspan> م</text>`;
+  });
+  out += `</svg>`;
+  return { svg: out, W, H };
+}
+
+function svgToPngBlob({ svg, W, H }, scale = 2) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const cv = document.createElement("canvas");
+      cv.width = W * scale; cv.height = H * scale;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
+    };
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+}
+
+async function saveFile(blob, filename) {
+  let dl = null;
+  try { dl = window.claude?.use ? await window.claude.use("downloads") : null; } catch { dl = null; }
+  if (dl) return dl.save({ filename, data: blob });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+$("#pngBtn").addEventListener("click", async () => {
+  const btn = $("#pngBtn"), label = "تحميل الرسمة كصورة";
+  if (geometry().clean.length < 2) { btn.textContent = "أدخل نقطتين على الأقل"; setTimeout(() => (btn.textContent = label), 1800); return; }
+  btn.disabled = true; btn.textContent = "جاري تجهيز الصورة…";
+  try {
+    const blob = await svgToPngBlob(buildExportSvg());
+    await saveFile(blob, "مخطط-قطعة-الأرض.png");
+    btn.textContent = "تم التحميل";
+  } catch (err) {
+    btn.textContent = err && err.code === "declined" ? label : "تعذّر التحميل، حاول مرة ثانية";
+  }
+  btn.disabled = false;
+  setTimeout(() => (btn.textContent = label), 2000);
 });
 
 renderTable();
