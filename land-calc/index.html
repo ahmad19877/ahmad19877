@@ -45,7 +45,70 @@
     background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55;
     padding-inline: 16px; padding-block: 20px 40px;
   }
-  .wrap { max-width: 1180px; margin-inline: auto; display: grid; gap: 18px; }
+  .wrap { max-width: 1180px; margin-inline: auto; display: grid; gap: 18px; min-width: 0; }
+
+  /* ---- options bar: top or side ---- */
+  .toolbar {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 10px 0; align-items: stretch;
+  }
+  .tb-head { display: flex; align-items: center; gap: 10px; }
+  .tb-title { font-size: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+  .seg button + button { border-inline-start: 1px solid var(--line); }
+  .seg button svg { width: 18px; height: 14px; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .tb-group { display: flex; flex-direction: column; gap: 6px; padding-inline: 12px; min-width: 0; }
+  .tb-label { font-size: 11.5px; color: var(--muted); letter-spacing: .03em; font-weight: 500; }
+  .tb-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .toolbar button, .toolbar .filebtn { padding: 6px 11px; font-size: 13.5px; }
+  .toolbar .chk { display: flex; gap: 7px; align-items: center; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+  .toolbar .chk.inl input { width: 80px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font-family: var(--mono); direction: ltr; }
+  #parcelName { width: 100%; min-width: 200px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; }
+  #parcelName:focus, .toolbar .chk.inl input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  .toolbar .hint { font-size: 12px; }
+
+  /* top: one horizontal strip with dividers between groups */
+  .app[data-bar="top"] { display: grid; gap: 18px; max-width: 1320px; margin-inline: auto; }
+  .app[data-bar="top"] .wrap { max-width: 1180px; width: 100%; }
+  .app[data-bar="top"] .tb-head { padding-inline-end: 14px; border-inline-end: 1px solid var(--line); flex-direction: column; align-items: flex-start; justify-content: center; }
+  .app[data-bar="top"] .tb-group + .tb-group { border-inline-start: 1px solid var(--line); }
+  @media (min-width: 900px) {
+    .app[data-bar="top"] .tb-title, .app[data-bar="top"] .seg-t { display: none; }
+    .app[data-bar="top"] .seg { flex-direction: column; }
+    .app[data-bar="top"] .seg button + button { border-inline-start: 0; border-top: 1px solid var(--line); }
+    .app[data-bar="top"] #parcelName { min-width: 160px; }
+  }
+  @media (min-width: 900px) and (min-height: 760px) {
+    .app[data-bar="top"] .toolbar { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 5; box-shadow: 0 4px 14px rgba(0, 0, 0, .06); }
+  }
+
+  /* side: a column on the start (right) edge */
+  @media (min-width: 900px) {
+    .app[data-bar="side"] { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+    .app[data-bar="side"] .toolbar {
+      position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px);
+      max-height: calc(100vh - 24px); overflow-y: auto;
+      flex-direction: column; flex-wrap: nowrap; gap: 0; padding: 12px;
+    }
+    .app[data-bar="side"] .tb-head { justify-content: space-between; padding-bottom: 10px; }
+    .app[data-bar="side"] .tb-group { padding: 12px 0; border-top: 1px solid var(--line); }
+    .app[data-bar="side"] #parcelName { min-width: 0; }
+    .app[data-bar="side"] .layout { grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); }
+  }
+  @media (max-width: 1100px) and (min-width: 900px) {
+    .app[data-bar="side"] .layout { grid-template-columns: 1fr; }
+  }
+  /* phones: the side choice falls back to a stacked block at the top */
+  @media (max-width: 899px) {
+    .app { display: grid; gap: 18px; }
+    .toolbar { flex-direction: column; flex-wrap: nowrap; gap: 0; }
+    .tb-head { justify-content: space-between; padding-bottom: 8px; }
+    .tb-group { padding: 10px 0; border-top: 1px solid var(--line); border-inline-start: 0 !important; }
+    .app[data-bar="top"] .tb-head { border-inline-end: 0; flex-direction: row; align-items: center; justify-content: space-between; padding-inline-end: 0; }
+    #parcelName { min-width: 0; }
+  }
   header h1 { margin: 0; font-size: 24px; font-weight: 700; text-wrap: balance; }
   header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 
@@ -102,10 +165,6 @@
 
   .drawing { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
   .col { display: grid; gap: 18px; min-width: 0; }
-  .namerow { display: grid; gap: 4px; }
-  .namerow label { font-size: 13px; color: var(--muted); }
-  .namerow input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-weight: 500; }
-  .namerow input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
   .saved { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
   .saved li { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
   .saved li.current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -133,6 +192,80 @@
 </style>
 </head>
 <body>
+<div class="app" id="app" data-bar="top">
+<aside class="toolbar" id="toolbar" aria-label="خيارات البرنامج">
+  <div class="tb-head">
+    <strong class="tb-title">الخيارات</strong>
+    <div class="seg" role="group" aria-label="مكان شريط الخيارات">
+      <button type="button" id="barTop" aria-pressed="true" title="الخيارات في أعلى الشاشة">
+        <svg viewBox="0 0 20 16" aria-hidden="true"><rect x="1" y="1" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="1" y="1" width="18" height="4.5" rx="1.5" fill="currentColor"/></svg>
+        <span class="seg-t">أعلى</span>
+      </button>
+      <button type="button" id="barSide" aria-pressed="false" title="الخيارات على جانب الشاشة">
+        <svg viewBox="0 0 20 16" aria-hidden="true"><rect x="1" y="1" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="1" width="6" height="14" rx="1.5" fill="currentColor"/></svg>
+        <span class="seg-t">جانب</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">الأرض</span>
+    <input id="parcelName" type="text" placeholder="اسم الأرض، مثلاً: شفا بدران – حوض 5" autocomplete="off" aria-label="اسم الأرض" />
+    <div class="tb-row">
+      <button class="primary" id="saveBtn" type="button">حفظ الأرض</button>
+      <button id="saveNewBtn" type="button" hidden>حفظ كأرض جديدة</button>
+      <button id="newBtn" type="button">أرض جديدة</button>
+    </div>
+    <p class="hint" id="saveMsg" hidden></p>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">النقاط</span>
+    <div class="tb-row">
+      <button id="addBtn" type="button">+ نقطة زاوية</button>
+      <button id="lvlAddBtn" type="button">+ منسوب داخلي</button>
+    </div>
+    <div class="tb-row">
+      <button id="clearBtn" type="button">مسح الزوايا</button>
+      <button id="lvlClearBtn" type="button">مسح المناسيب</button>
+    </div>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">الرسمة</span>
+    <label class="chk"><input type="checkbox" id="closePoly" checked /> إغلاق الشكل</label>
+    <label class="chk"><input type="checkbox" id="showAngles" checked /> إظهار الزوايا</label>
+    <label class="chk"><input type="checkbox" id="xNorth" /> X شمالي و Y شرقي</label>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">الكنتور</span>
+    <label class="chk"><input type="checkbox" id="showTopo" checked /> خطوط الكنتور والتلوين</label>
+    <label class="chk inl" for="cInt">الفاصل <input id="cInt" inputmode="decimal" placeholder="تلقائي" /> م</label>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">تصدير</span>
+    <div class="tb-row">
+      <button class="primary" id="pngBtn" type="button">صورة PNG</button>
+      <button class="primary" id="pdfBtn" type="button">PDF</button>
+    </div>
+    <div class="tb-row">
+      <button id="copyBtn" type="button">نسخ النتائج</button>
+    </div>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-label">نسخة احتياطية</span>
+    <div class="tb-row">
+      <button id="backupBtn" type="button">تنزيل</button>
+      <label class="filebtn" for="importFile">استيراد</label>
+      <input id="importFile" type="file" accept=".json,application/json" hidden />
+    </div>
+    <p class="hint" id="backupMsg" hidden></p>
+  </div>
+</aside>
+
 <div class="wrap">
   <header>
     <h1>مخطط قطعة الأرض من الإحداثيات</h1>
@@ -143,16 +276,6 @@
     <!-- Inputs -->
     <div class="col">
     <section class="panel" aria-labelledby="inTitle">
-      <div class="namerow">
-        <label for="parcelName">اسم الأرض</label>
-        <input id="parcelName" type="text" placeholder="مثلاً: أرض شفا بدران – حوض 5" autocomplete="off" />
-      </div>
-      <div class="actions">
-        <button class="primary" id="saveBtn" type="button">حفظ الأرض</button>
-        <button id="saveNewBtn" type="button" hidden>حفظ كأرض جديدة</button>
-        <button id="newBtn" type="button">أرض جديدة</button>
-      </div>
-      <p class="hint" id="saveMsg" hidden></p>
       <h2 id="inTitle">نقاط الزوايا</h2>
       <p class="hint" id="sampleHint">النقطتان 1 و2 من ملفك، والنقطتان 3 و4 وكل المناسيب (Z) مثال للتجربة. استبدلها بقيمك.</p>
       <div class="scroll">
@@ -161,11 +284,6 @@
           <tbody></tbody>
         </table>
       </div>
-      <div class="actions">
-        <button class="primary" id="addBtn" type="button">+ إضافة نقطة</button>
-        <button id="clearBtn" type="button">مسح الكل</button>
-      </div>
-
       <details id="pasteBox" open>
         <summary>إضافة مجموعة إحداثيات مرة واحدة</summary>
         <textarea id="pasteArea" placeholder="3988814.039  3762525.662&#10;3988848.391, 3762533.738&#10;..."></textarea>
@@ -176,12 +294,6 @@
         <p class="hint">كل سطر نقطة: X ثم Y (وZ المنسوب إن وجد)، مفصولين بمسافة أو فاصلة أو Tab. يقبل الأرقام العربية ٠١٢٣. وتقدر تلصق عموداً أو عمودين من إكسل مباشرة داخل أي خانة في الجدول، فتتعبأ الصفوف تلقائياً.</p>
         <p class="hint" id="pasteMsg" hidden></p>
       </details>
-
-      <div class="opts">
-        <label><input type="checkbox" id="closePoly" checked /> إغلاق الشكل (آخر نقطة إلى الأولى)</label>
-        <label><input type="checkbox" id="xNorth" /> X هو الإحداثي الشمالي (Northing) و Y الشرقي</label>
-        <label><input type="checkbox" id="showAngles" checked /> إظهار الزوايا على الرسمة</label>
-      </div>
     </section>
 
     <section class="panel" aria-labelledby="topoTitle">
@@ -193,10 +305,6 @@
           <tbody></tbody>
         </table>
       </div>
-      <div class="actions">
-        <button class="primary" id="lvlAddBtn" type="button">+ إضافة منسوب</button>
-        <button id="lvlClearBtn" type="button">مسح المناسيب</button>
-      </div>
       <details id="lvlPasteBox">
         <summary>لصق مجموعة مناسيب مرة واحدة</summary>
         <textarea id="lvlPasteArea" placeholder="3988828.0  3762544.0  815.60&#10;3988838.0, 3762540.0, 815.90&#10;..."></textarea>
@@ -207,22 +315,12 @@
         <p class="hint">كل سطر: X ثم Y ثم Z. وتقدر تلصق من إكسل داخل أي خانة بالجدول مباشرة.</p>
       </details>
       <p class="hint" id="lvlMsg" hidden></p>
-      <div class="opts">
-        <label><input type="checkbox" id="showTopo" checked /> إظهار خطوط الكنتور وتلوين الارتفاعات</label>
-        <label class="inl" for="cInt">فاصل الكنتور <input id="cInt" inputmode="decimal" placeholder="تلقائي" /> م</label>
-      </div>
     </section>
 
     <section class="panel" aria-labelledby="svTitle">
       <h2 id="svTitle">الأراضي المحفوظة</h2>
       <p class="hint" id="storeNote"></p>
       <ul class="saved" id="savedList"></ul>
-      <div class="actions">
-        <button id="backupBtn" type="button">تنزيل نسخة احتياطية</button>
-        <label class="filebtn" for="importFile">استيراد نسخة احتياطية</label>
-        <input id="importFile" type="file" accept=".json,application/json" hidden />
-      </div>
-      <p class="hint" id="backupMsg" hidden></p>
     </section>
     </div>
 
@@ -236,13 +334,6 @@
       </div>
 
       <div class="drawing">
-        <div class="drawbar">
-          <span class="hint">الرسمة</span>
-          <div class="actions">
-            <button class="primary" id="pngBtn" type="button">تحميل الرسمة كصورة</button>
-            <button class="primary" id="pdfBtn" type="button">حفظ PDF</button>
-          </div>
-        </div>
         <svg id="plot" viewBox="0 0 800 560" role="img" aria-label="رسمة قطعة الأرض"></svg>
         <div class="dims" id="dims"></div>
       </div>
@@ -250,10 +341,7 @@
 
       <div class="two">
         <section class="panel" aria-labelledby="edTitle">
-          <div class="actions" style="justify-content:space-between">
-            <h2 id="edTitle">أطوال الأضلاع</h2>
-            <button id="copyBtn" type="button">نسخ النتائج</button>
-          </div>
+          <h2 id="edTitle">أطوال الأضلاع</h2>
           <div class="scroll">
             <table id="edgesTable">
               <thead><tr><th>الضلع</th><th>ΔX</th><th>ΔY</th><th>الطول (م)</th></tr></thead>
@@ -274,6 +362,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <script>
@@ -1243,6 +1332,17 @@ $("#importFile").addEventListener("change", async (e) => {
     flash("#backupMsg", "الملف مش نسخة احتياطية من هذي الصفحة. اختر ملف .json نزّلته من زر \"تنزيل نسخة احتياطية\".", 5000);
   }
 });
+
+// Options bar position: top strip or side column, remembered in this browser.
+function setBar(mode) {
+  $("#app").dataset.bar = mode;
+  $("#barTop").setAttribute("aria-pressed", mode === "top");
+  $("#barSide").setAttribute("aria-pressed", mode === "side");
+  try { localStorage.setItem("landBar", mode); } catch {}
+}
+$("#barTop").addEventListener("click", () => setBar("top"));
+$("#barSide").addEventListener("click", () => setBar("side"));
+try { const b = localStorage.getItem("landBar"); if (b === "side" || b === "top") setBar(b); } catch {}
 
 loadDraft();
 renderTable();
